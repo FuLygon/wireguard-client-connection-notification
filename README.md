@@ -4,8 +4,9 @@ Receive notifications via Telegram or Gotify whenever a client connects or disco
 
 ## What news in this fork
 
-   - Option for running `wg` command inside docker container via `docker exec`.
+   - Running `wg` command inside docker container via `docker exec`.
    - Client name mapping via config file.
+   - Disabling disconnected notification.
 
 ## Installation and Setup
 

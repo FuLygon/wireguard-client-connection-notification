@@ -20,8 +20,11 @@ readonly CURRENT_PATH=$(pwd)
 readonly CLIENTS_DIRECTORY="$CURRENT_PATH/clients"
 readonly CLIENT_NAMES_CONFIG="$CURRENT_PATH/client_names.conf"
 readonly NOW=$(date +%s)
+readonly DISABLE_DISCONNECT_NOTIFICATIONS=$(awk -F'=' '/^disable_disconnect_notifications=/ { print $2}' $1)
+
 # after X minutes the clients will be considered disconnected
 readonly TIMEOUT=$(awk -F'=' '/^timeout=/ { print $2}' $1)
+
 # docker config
 readonly DOCKER_EXEC=$(awk -F'=' '/^docker_wg_exec=/ { print $2}' $1)
 readonly DOCKER_EXEC_CONTAINER=$(awk -F'=' '/^docker_wg_container=/ { print $2}' $1)
@@ -135,6 +138,12 @@ while IFS= read -r LINE; do
 	if [ "no" != "$send_notification" ]; then
 		printf "The client %s is %s\n" $client_name $send_notification
 		message="Client $client_name is $send_notification from IP address $remote_ip"
+
+		# skip disconnect notifications if disabled
+		if [ "$send_notification" = "disconnected" ] && [ "$DISABLE_DISCONNECT_NOTIFICATIONS" = "true" ]; then
+			continue
+		fi
+
 		if [ "telegram" == "$NOTIFICATION_CHANNEL" ] || [ "both" == "$NOTIFICATION_CHANNEL" ]; then
 			curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" -F chat_id=$TELEGRAM_CHAT_ID -F text="🐉 Wireguard: \`$message\`" -F parse_mode="MarkdownV2" > /dev/null 2>&1
 		fi
