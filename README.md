@@ -26,9 +26,12 @@ git clone https://github.com/FuLygon/wireguard-client-connection-notification.gi
 
    ```bash
    mv .config-example .config
+   mv client_names.conf.example client_names.conf
    ```
 
 2. Edit the `.config` file to include your notification and docker related settings. Make sure to configure either Telegram or Gotify server details.
+
+3. *(Optional)* Edit the `client_names.conf` file to map client name using client public key.
 
 ### 3. Set Up Permissions and Schedule the Script
 
