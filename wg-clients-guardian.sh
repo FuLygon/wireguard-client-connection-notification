@@ -5,12 +5,6 @@
 # This script is written by Alfio Salanitri <www.alfiosalanitri.it> and are licensed under MIT License.
 # Credits: This script is inspired by https://github.com/pivpn/pivpn/blob/master/scripts/wireguard/clientSTAT.sh
 
-# check if wireguard exists
-if ! command -v wg &> /dev/null; then
-	printf "Sorry, but wireguard is required. Install it and try again.\n"
-	exit 1;
-fi
-
 # check if the user passed in the config file and that the file exists
 if [ ! "$1" ]; then
 	printf "The config file is required.\n"
@@ -24,16 +18,65 @@ fi
 # config constants
 readonly CURRENT_PATH=$(pwd)
 readonly CLIENTS_DIRECTORY="$CURRENT_PATH/clients"
+readonly CLIENT_NAMES_CONFIG="$CURRENT_PATH/client_names.conf"
 readonly NOW=$(date +%s)
-
 # after X minutes the clients will be considered disconnected
 readonly TIMEOUT=$(awk -F'=' '/^timeout=/ { print $2}' $1)
+# docker config
+readonly DOCKER_EXEC=$(awk -F'=' '/^docker_wg_exec=/ { print $2}' $1)
+readonly DOCKER_EXEC_CONTAINER=$(awk -F'=' '/^docker_wg_container=/ { print $2}' $1)
 
-readonly WIREGUARD_CLIENTS=$(wg show wg0 dump | tail -n +2) # remove first line from list
+# get wg command
+get_wg() {
+    if [ "$DOCKER_EXEC" = "true" ]; then
+        if [ -z "$DOCKER_EXEC_CONTAINER" ]; then
+            echo "Sorry, but docker_wg_container is not set in config file" >&2
+            exit 1
+        fi
+        docker exec "$DOCKER_EXEC_CONTAINER" wg show wg0 dump
+    else
+        if ! command -v wg &> /dev/null; then
+            printf "Sorry, but wireguard is required. Install it and try again.\n" >&2
+            exit 1
+        fi
+        wg show wg0 dump
+    fi
+}
+
+readonly WIREGUARD_CLIENTS=$(get_wg | tail -n +2) # remove first line from list
 if [ "" == "$WIREGUARD_CLIENTS" ]; then
 	printf "No wireguard clients.\n"
 	exit 1
 fi
+
+# get client name from config file if configurated
+get_client_name() {
+    local public_key=$1
+    local client_name=""
+
+    # get client name mapping from config file
+    if [ -f "$CLIENT_NAMES_CONFIG" ]; then
+        client_name=$(awk -F'@' -v key="$public_key" '$1 == key {print $2}' "$CLIENT_NAMES_CONFIG")
+    fi
+
+	if [ -z "$client_name" ]; then
+		# check if the wireguard directory keys exists (created by pivpn)
+		if [ -d "/etc/wireguard/keys/" ]; then
+			# if the public_key is stored in the /etc/wireguard/keys/username_pub file, save the username in the client_name var
+			client_name_by_public_key=$(grep -R "$public_key" /etc/wireguard/keys/ | awk -F"/etc/wireguard/keys/|_pub:" '{print $2}' | sed -e 's./..g')
+			if [ "" != "$client_name_by_public_key" ]; then
+				client_name=$client_name_by_public_key
+			fi
+		fi
+	fi
+
+	# use sanitized public key as the last method for client name
+    if [ -z "$client_name" ]; then
+        client_name=$(echo "$public_key" | sed 's/[^a-zA-Z0-9]//g')
+    fi
+
+    echo "$client_name"
+}
 
 readonly NOTIFICATION_CHANNEL=$(awk -F'=' '/^notification_channel=/ { print $2}' $1)
 
@@ -48,16 +91,7 @@ while IFS= read -r LINE; do
 	public_key=$(awk '{ print $1 }' <<< "$LINE")
 	remote_ip=$(awk '{ print $3 }' <<< "$LINE" | awk -F':' '{print $1}')
 	last_seen=$(awk '{ print $5 }' <<< "$LINE")
-	# By default, the client name is just the sanitized public key containing only letters and numbers.
-	client_name=$(echo "$public_key" | sed 's/[^a-zA-Z0-9]//g')
-	# check if the wireguard directory keys exists (created by pivpn)
-	if [ -d "/etc/wireguard/keys/" ]; then
-		# if the public_key is stored in the /etc/wireguard/keys/username_pub file, save the username in the client_name var
-		client_name_by_public_key=$(grep -R "$public_key" /etc/wireguard/keys/ | awk -F"/etc/wireguard/keys/|_pub:" '{print $2}' | sed -e 's./..g')
-		if [ "" != "$client_name_by_public_key" ]; then
-			client_name=$client_name_by_public_key
-		fi
-	fi
+	client_name=$(get_client_name "$public_key")
 	client_file="$CLIENTS_DIRECTORY/$client_name.txt"
 
 	# create the client file if it does not exist.
@@ -100,7 +134,7 @@ while IFS= read -r LINE; do
 	# send notification to telegram
 	if [ "no" != "$send_notification" ]; then
 		printf "The client %s is %s\n" $client_name $send_notification
-		message="$client_name is $send_notification from ip address $remote_ip"
+		message="Client $client_name is $send_notification from IP address $remote_ip"
 		if [ "telegram" == "$NOTIFICATION_CHANNEL" ] || [ "both" == "$NOTIFICATION_CHANNEL" ]; then
 			curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" -F chat_id=$TELEGRAM_CHAT_ID -F text="🐉 Wireguard: \`$message\`" -F parse_mode="MarkdownV2" > /dev/null 2>&1
 		fi

@@ -1,0 +1,6 @@
+# WireGuard Client Name Mappings
+# Format: public_key@client_name
+# Example:
+# je2FH/MVQe5R2ROD26K/MQtEdCC9uMn7LA0YjObhxkw=@device1
+# 3R3ba45WAW1rdcW7OaLTi980SYNYUCxt1HESA955MQs=@device2
+# rjaQzN1c3ACwuooeNuz+oXRBc6eOtu/iX3Lr19vaRAE=@device3

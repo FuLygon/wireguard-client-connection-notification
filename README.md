@@ -2,6 +2,11 @@
 
 Receive notifications via Telegram or Gotify whenever a client connects or disconnects from a WireGuard tunnel.
 
+## What news in this fork
+
+   - Option for running `wg` command inside docker container via `docker exec`.
+   - Client name mapping via config file.
+
 ## Installation and Setup
 
 Follow these steps to set up the notification service on your WireGuard server.
@@ -11,7 +16,7 @@ Follow these steps to set up the notification service on your WireGuard server.
 Start by cloning this repository onto your server:
 
 ```bash
-git clone https://github.com/yourusername/wireguard-client-connection-notification.git
+git clone https://github.com/FuLygon/wireguard-client-connection-notification.git
 ```
 
 ### 2. Configure the Service
@@ -22,7 +27,7 @@ git clone https://github.com/yourusername/wireguard-client-connection-notificati
    mv .config-example .config
    ```
 
-2. Edit the `.config` file to include your notification settings. Make sure to configure either Telegram or Gotify server details.
+2. Edit the `.config` file to include your notification and docker related settings. Make sure to configure either Telegram or Gotify server details.
 
 ### 3. Set Up Permissions and Schedule the Script
 

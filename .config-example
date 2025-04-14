@@ -8,6 +8,10 @@ notification_channel=both
 ; After X minutes the clients will be considered disconnected
 ; Choose a timeout greater then 5 minutes to limit many false positives
 timeout=5
+; Run wg command in docker container instead of locally
+docker_wg_exec=false
+; Name of the docker container running wireguard to execute wg command if docker_wg_exec is true
+docker_wg_container=wireguard
 
 [telegram]
 ; Register your telegram bot https://core.telegram.org/bots
